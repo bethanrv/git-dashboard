@@ -9,11 +9,25 @@ from tkinter import filedialog, messagebox, ttk
 from dotenv import load_dotenv, set_key
 
 """
-Create link:
-ln -s /home/bvargo@corp.greenphire.net/Documents/git-dashboard/git-dashboard.py ~/.local/bin/repos
+GIT REPO DASHBOARD
+==================
+A lightweight, dark-themed GUI launcher for Git repositories.
 
-alias repos command with disown so gui can run independently of the terminal:
-alias repos='~/.local/bin/repos > /dev/null 2>&1 & disown'
+DESCRIPTION:
+    Scans a local directory for Git repositories and provides a searchable,
+    sortable interface to launch them in a preferred code editor (default: Zed).
+
+DEPENDENCIES:
+    - python3-tk (Standard Library)
+    - python-dotenv (pip install python-dotenv)
+
+CONFIGURATION:
+    Configuration is managed via a '.env' file in the script's directory.
+    - BASE_PATH: The parent directory containing your Git repos.
+    - EDITOR_COMMAND: The CLI command to open your editor (e.g., 'zed', 'code').
+
+SETUP:
+    Run the provided 'setup.sh' to create a system-wide 'repos' command.
 """
 
 # --- LOAD CONFIGURATION ---
