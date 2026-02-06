@@ -7,6 +7,7 @@ Currently linux only
 Clone Repo:
 ```
 git clone https://github.com/brianrodgersvargo/git-dashboard.git
+cd git-dashboard
 ```
 
 To make the dashboard accessible from anywhere in your system without cluttering your terminal, simply run:
