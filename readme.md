@@ -3,14 +3,24 @@ This script is a persistent project launcher designed for high-speed navigation 
 Currently linux only
 
 ## Installation & Command Setup
-To make the dashboard accessible from anywhere in your system without cluttering your terminal, simply run `./setup.sh`
-Optionally: (add execution permission and reload shell)
+
+Clone Repo:
 ```
-chmod +x setup.sh
+https://github.com/brianrodgersvargo/git-dashboard.git
+```
+
+To make the dashboard accessible from anywhere in your system without cluttering your terminal, simply run:
+```
 ./setup.sh
-source ~/.bashrc
 ```
-This automates the environment configuration, allowing you to simply type repos in any terminal to launch the GUI.
+
+- Or, optionally: (add execution permission and reload shell)
+  ```
+  chmod +x setup.sh
+  ./setup.sh
+  source ~/.bashrc
+  ```
+  This automates the environment configuration, allowing you to simply type repos in any terminal to launch the GUI.
 
 What setup.sh does:
   - Dependency Check: Verifies python3-tk is installed via apt and installs Python dependencies from requirements.txt.
