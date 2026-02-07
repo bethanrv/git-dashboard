@@ -30,28 +30,21 @@ SUCCESS_HOVER = "#3fb950"
 HOVER = "#444444"
 
 def load_icons():
-    # Detect if we are on a system that might struggle with complex Unicode
-    # (Optional: can be expanded to check specific font availability)
-    is_windows = sys.platform == "win32"
+    is_linux = sys.platform.startswith("linux")
+    if is_linux:
+        return {
+            'GLOBE_ICON': "↗",      # Clean "Open Link" arrow, very safe on Linux
+            'SETTINGS_ICON': "⚙",    # Gear usually renders fine on Linux
+            'RELOAD_ICON': "↻",      # Refresh usually renders fine
+        }
     
-    # Selection: [Desired, Fallback]
-    icons = {
-        'GLOBE_ICON': ["🌐︎", "link"],
-        'SETTINGS_ICON': ["⚙", "cfg"],
-        'RELOAD_ICON': ["↻", "R"]
+    # macOS and Windows handle the full emoji set much better
+    return {
+        'GLOBE_ICON': "🌐︎", 
+        'SETTINGS_ICON': "⚙", 
+        'RELOAD_ICON': "↻",
     }
-    
-    final_icons = {}
-    for key, variants in icons.items():
-        try:
-            # We try to encode to the system's default encoding (usually utf-8)
-            # to see if the character is supported.
-            variants[0].encode(sys.getdefaultencoding())
-            final_icons[key] = variants[0]
-        except UnicodeEncodeError:
-            final_icons[key] = variants[1]
-            
-    return final_icons
+
 # --- Icons ---
 ICONS = load_icons()
 
