@@ -316,8 +316,11 @@ class DarkRepoLauncher:
             try:
                 subprocess.Popen([EDITOR_COMMAND, path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except FileNotFoundError:
-                cmd = "open" if sys.platform == "darwin" else "xdg-open"
-                subprocess.Popen([cmd, path])
+                if sys.platform == "win32":
+                    os.startfile(path) # Opens in default File Explorer
+                else:
+                    cmd = "open" if sys.platform == "darwin" else "xdg-open"
+                    subprocess.Popen([cmd, path])
 
     def open_settings(self): SettingsWindow(self)
     def quit_app(self, event=None):
@@ -325,5 +328,12 @@ class DarkRepoLauncher:
 
 if __name__ == "__main__":
     root = tk.Tk()
+    # Fix blurry text on Windows
+    if sys.platform == "win32":
+        try:
+            from ctypes import windll
+            windll.shcore.SetProcessDpiAwareness(1)
+        except:
+            pass
     app = DarkRepoLauncher(root)
     root.mainloop()
