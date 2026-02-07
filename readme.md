@@ -40,7 +40,9 @@ Directory setup:
 - In Settings (⚙), Set the base directory to search for git repos in (e.g., documents)
 
 # To Do:
-- Test osx script for linux compatibility, replace original
+- Compatability Testing:
+  - windows version works on osx
+  - test on linux:
 - Split script into ui, services, main
 - Windows setup/script, test on mac
 - Single installer
