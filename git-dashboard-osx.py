@@ -5,6 +5,8 @@ import sys
 import tkinter as tk
 from datetime import datetime
 from tkinter import messagebox, ttk
+import re
+import webbrowser
 
 from dotenv import load_dotenv, set_key
 
@@ -52,6 +54,25 @@ def get_time_ago(timestamp):
     if s < 86400: return f"{int(s // 3600)}h ago"
     return f"{int(s // 86400)}d ago"
 
+def extract_git_url(repo_path):
+    """Parses .git/config to find the remote origin URL."""
+    config_path = os.path.join(repo_path, ".git", "config")
+    if not os.path.exists(config_path):
+        return None
+    try:
+        with open(config_path, "r") as f:
+            content = f.read()
+            # Regex to find the url under [remote "origin"]
+            match = re.search(r'\[remote "origin"\][^\[]*url = ([^\s\n]+)', content)
+            if match:
+                url = match.group(1)
+                # Convert SSH format (git@github.com:user/repo.git) to HTTPS for browser compatibility
+                if url.startswith("git@"):
+                    url = url.replace(":", "/").replace("git@", "https://").replace(".git", "")
+                return url
+    except Exception:
+        return None
+
 def get_git_repos(path):
     repos = []
     try:
@@ -68,11 +89,13 @@ def get_git_repos(path):
                         if os.path.exists(msg_file)
                         else os.path.getmtime(git_dir)
                     )
+                    remote_url = extract_git_url(entry.path)
                     repos.append({
                         "name": entry.name,
                         "path": entry.path,
                         "mtime": mtime,
                         "time_ago": get_time_ago(mtime),
+                        "remote_url": remote_url
                     })
         return repos
     except Exception as e:
@@ -258,6 +281,24 @@ class DarkRepoLauncher:
         self.btn_open.bind("<Enter>", lambda e: self.btn_open.configure(bg=SUCCESS_HOVER))
         self.btn_open.bind("<Leave>", lambda e: self.btn_open.configure(bg=SUCCESS))
 
+
+        self.globe_btn = tk.Label(
+            self.tree, 
+            text="🌐︎", 
+            bg=SELECTED,
+            fg=FG_TEXT,
+            font=(SYS_FONT, 12),
+            cursor="hand2",
+            padx=5
+        )
+        self.globe_btn.bind("<Button-1>", self.open_browser)
+        self.globe_btn.bind("<Enter>", lambda e: self.globe_btn.configure(fg="white"))
+        self.globe_btn.bind("<Leave>", lambda e: self.globe_btn.configure(fg=FG_TEXT))
+        
+        self.current_hover_url = None
+
+        self.tree.bind("<<TreeviewSelect>>", self.handle_selection)
+        self.current_hover_url = None
         self.refresh_data()
 
     def open_settings(self): SettingsWindow(self)
@@ -279,16 +320,57 @@ class DarkRepoLauncher:
         if toggle: self.sort_reverse[col] = not reverse
         self.update_list()
 
+    def get_row_bg(self, index):
+        """Helper to match globe background to striped rows"""
+        return BG_STRIPE if index % 2 == 0 else BG_MAIN
+
+    def open_browser(self, event):
+        if self.current_hover_url:
+            webbrowser.open(self.current_hover_url)
+
+    def handle_selection(self, event):
+        selection = self.tree.selection()
+        if not selection:
+            self.globe_btn.place_forget()
+            return
+
+        item_id = selection[0]
+        index = self.tree.index(item_id)
+        repo = self.filtered_repos[index]
+
+        if repo.get("remote_url"):
+            self.current_hover_url = repo["remote_url"]
+            
+            # We target column #1 (Name)
+            bbox = self.tree.bbox(item_id, "#1")
+            if bbox:
+                x, y, w, h = bbox
+                # Use the 'SELECTED' color since this row is currently active
+                self.globe_btn.configure(bg=SELECTED)
+                
+                # Place the globe at the far right of the selection
+                # Adjust x=w-35 to ensure it doesn't overlap long repo names
+                self.globe_btn.place(x=w-35, y=y, height=h)
+        else:
+            # Hide it if the selected repo has no remote URL
+            self.globe_btn.place_forget()
+            self.current_hover_url = None
+
     def update_list(self, *args):
         search_term = self.search_var.get().lower()
         for item in self.tree.get_children(): self.tree.delete(item)
+        
         self.displayed_paths = []
+        self.filtered_repos = [] # Keep track of filtered list for hover logic
+        self.globe_btn.place_forget()
+        
         count = 0
         for repo in self.all_repos:
             if search_term in repo["name"].lower():
                 tag = "evenrow" if count % 2 == 0 else "oddrow"
                 self.tree.insert("", tk.END, values=(f"  {repo['name']}", repo["time_ago"]), tags=(tag,))
                 self.displayed_paths.append(repo["path"])
+                self.filtered_repos.append(repo)
                 count += 1
         self.status_var.set(f"Found {count} repositories")
 

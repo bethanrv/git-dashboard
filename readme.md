@@ -40,6 +40,7 @@ Directory setup:
 - In Settings (⚙), Set the base directory to search for git repos in (e.g., documents)
 
 # To Do:
+- UI add weblink btn
 - Merge scripts
 - Split script into ui, services, main
 - Windows setup
