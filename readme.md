@@ -42,5 +42,6 @@ Directory setup:
 # To Do:
 - Test osx script for linux compatibility, replace original
 - Split script into ui, services, main
-- Windows setup/script
+- Windows setup/script, test on mac
 - Single installer
+- Add configurable search depth
