@@ -1,35 +1,51 @@
 #!/bin/bash
 
 # --- CONFIGURATION ---
-SCRIPT_PATH="$(pwd)/git-dashboard.py"
-BIN_LINK="$HOME/.local/bin/repos"
+DASHBOARD_FILE="git-dashboard.py"
+SCRIPT_PATH="$(pwd)/$DASHBOARD_FILE"
+BIN_DIR="$HOME/.local/bin"
+BIN_LINK="$BIN_DIR/repos"
+FUNC_CMD="repos() { nohup $BIN_LINK >/dev/null 2>&1 & }"
 
-FUNC_CMD="repos() { nohup ~/.local/bin/repos >/dev/null 2>&1 & }"
+echo "🚀 Starting Git Repo Dashboard Unified Setup..."
 
-echo "--- Starting Git Repo Dashboard Setup ---"
+# Platform Detection & Dependency Install
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "🍎 macOS detected"
+    CONF_FILE="$HOME/.zshrc" # Default for modern macOS
+    [[ ! -f "$CONF_FILE" ]] && CONF_FILE="$HOME/.bash_profile"
 
-# 1. Deps
-python3 -c "import tkinter" &> /dev/null || sudo apt update && sudo apt install -y python3-tk
-pip install python-dotenv
+    command -v brew >/dev/null 2>&1 || { echo "❌ Homebrew not found. Install it at https://brew.sh/"; exit 1; }
+    python3 -c "import tkinter" &> /dev/null || brew install python-tk
+    pip3 install python-dotenv --quiet
+else
+    echo "🐧 Linux detected"
+    CONF_FILE="$HOME/.bashrc"
 
-# 2. Permissions & Link
+    python3 -c "import tkinter" &> /dev/null || (sudo apt update && sudo apt install -y python3-tk)
+    pip install python-dotenv --quiet
+fi
+
+# Permissions & Binary Link
 chmod +x "$SCRIPT_PATH"
-mkdir -p "$HOME/.local/bin"
+mkdir -p "$BIN_DIR"
 ln -sf "$SCRIPT_PATH" "$BIN_LINK"
 
-# 3. Add Function (Removing any old alias first to avoid conflicts)
-# We use sed to clean up the bashrc so we don't have duplicate/conflicting commands
-sed -i '/alias repos=/d' "$HOME/.bashrc"
-sed -i '/repos() {/,/}/d' "$HOME/.bashrc"
+# 3. Clean up old references and append new function
+# Using a temporary file to safely scrub existing 'repos' definitions
+if [ -f "$CONF_FILE" ]; then
+    sed -i.bak '/alias repos=/d' "$CONF_FILE" 2>/dev/null || sed -i '' '/alias repos=/d' "$CONF_FILE"
+    sed -i.bak '/repos() {/,/}/d' "$CONF_FILE" 2>/dev/null || sed -i '' '/repos() {/,/}/d' "$CONF_FILE"
+fi
 
-echo -e "\n# Git Dashboard\n$FUNC_CMD" >> "$HOME/.bashrc"
+echo -e "\n# Git Dashboard\n$FUNC_CMD" >> "$CONF_FILE"
 
-echo "✔ Configuration updated in ~/.bashrc"
+echo "✅ Configuration updated in $CONF_FILE"
+echo "✅ Shortcut created at $BIN_LINK"
 echo "------------------------------------------"
-echo "DONE! To start using the command immediately, refresh shell (or run in new terminal):"
+echo "DONE! To start using the command, reload your shell:"
 echo ""
-echo "source ~/.bashrc"
+echo "   source $CONF_FILE"
 echo ""
-echo ""
-echo "Then simply type 'repos' to launch your dashboard."
+echo "Then simply type 'repos' from any directory."
 echo "------------------------------------------"
