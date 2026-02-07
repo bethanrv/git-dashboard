@@ -29,6 +29,32 @@ SUCCESS = "#2ea043"
 SUCCESS_HOVER = "#3fb950"
 HOVER = "#444444"
 
+def load_icons():
+    # Detect if we are on a system that might struggle with complex Unicode
+    # (Optional: can be expanded to check specific font availability)
+    is_windows = sys.platform == "win32"
+    
+    # Selection: [Desired, Fallback]
+    icons = {
+        'GLOBE_ICON': ["🌐︎", "link"],
+        'SETTINGS_ICON': ["⚙", "cfg"],
+        'RELOAD_ICON': ["↻", "R"]
+    }
+    
+    final_icons = {}
+    for key, variants in icons.items():
+        try:
+            # We try to encode to the system's default encoding (usually utf-8)
+            # to see if the character is supported.
+            variants[0].encode(sys.getdefaultencoding())
+            final_icons[key] = variants[0]
+        except UnicodeEncodeError:
+            final_icons[key] = variants[1]
+            
+    return final_icons
+# --- Icons ---
+ICONS = load_icons()
+
 # --- CROSS-PLATFORM SYSTEM FONT ---
 def get_system_font():
     if sys.platform == "darwin": return "SF Pro Display"
@@ -222,11 +248,11 @@ class DarkRepoLauncher:
         self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, ipady=4)
         self.search_entry.focus_set()
 
-        self.btn_refresh = tk.Label(top_frame, text="↻", bg=BG_HEADER, fg=FG_TEXT, font=(SYS_FONT, 14), padx=8, cursor="hand2")
+        self.btn_refresh = tk.Label(top_frame, text=ICONS['RELOAD_ICON'], bg=BG_HEADER, fg=FG_TEXT, font=(SYS_FONT, 14), padx=8, cursor="hand2")
         self.btn_refresh.pack(side=tk.LEFT, padx=2)
         self.btn_refresh.bind("<Button-1>", lambda e: self.refresh_data())
 
-        self.btn_settings = tk.Label(top_frame, text="⚙", bg=BG_HEADER, fg=FG_TEXT, font=(SYS_FONT, 14), padx=8, cursor="hand2")
+        self.btn_settings = tk.Label(top_frame, text=ICONS['SETTINGS_ICON'], bg=BG_HEADER, fg=FG_TEXT, font=(SYS_FONT, 14), padx=8, cursor="hand2")
         self.btn_settings.pack(side=tk.LEFT, padx=2)
         self.btn_settings.bind("<Button-1>", lambda e: self.open_settings())
 
@@ -241,7 +267,7 @@ class DarkRepoLauncher:
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Selection Logic for Globe
-        self.globe_btn = tk.Label(self.tree, text="🌐︎", bg=SELECTED, fg="#888888", font=(SYS_FONT, 12), cursor="hand2", padx=5)
+        self.globe_btn = tk.Label(self.tree, text=ICONS['GLOBE_ICON'], bg=SELECTED, fg="#888888", font=(SYS_FONT, 12), cursor="hand2", padx=5)
         self.globe_btn.bind("<Button-1>", self.open_browser)
         self.globe_btn.bind("<Enter>", lambda e: self.globe_btn.configure(fg="white"))
         self.globe_btn.bind("<Leave>", lambda e: self.globe_btn.configure(fg="#888888"))
