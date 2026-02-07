@@ -55,7 +55,7 @@ Click the Settings (⚙) icon to configure:
 
 ## 📝 To-Do List:
 - [ ] Refactor: Split script into `ui.py`, `services.py`, and `main.py`.
-- [ ] Installer: Create a single unified cross-platform installer.
 - [ ] Configurable Depth: Add setting to control how deep the script scans for .git folders.
 - [ ] GitHub Integration: Display requested reviews and open PR count.
+  - [ ] GitHub Sign In: UI and funcitons to sign into git.
 - [ ] Clone Button: Add a UI element to clone a new repo directly into the base path.
