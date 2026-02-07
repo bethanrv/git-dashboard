@@ -1,6 +1,6 @@
-# --- CONFIGURATION ---
+﻿# --- CONFIGURATION ---
 $ScriptPath = Join-Path (Get-Location) "git-dashboard-windows.py"
-$BinDir = Join-Path $HOME ".local/bin"
+$BinDir = Join-Path $HOME ".local\bin"  # Use backslashes for Windows paths
 $BinLink = Join-Path $BinDir "repos.ps1"
 
 Write-Host "--- Starting Git Repo Dashboard Setup (Windows) ---" -ForegroundColor Cyan
@@ -10,28 +10,27 @@ if (-not (Test-Path $BinDir)) {
     New-Item -ItemType Directory -Path $BinDir | Out-Null
 }
 
-# 2. Check Dependencies (Python & Tkinter)
+# 2. Check Dependencies (Python)
 if (-not (Get-Command "python" -ErrorAction SilentlyContinue)) {
-    Write-Error "Python not found. Please install it from python.org or the Microsoft Store."
+    Write-Error "Python not found. Please install it from python.org."
     exit
 }
 pip install python-dotenv --quiet
 
-# 3. Create a wrapper script (since Windows doesn't do 'ln -s' for scripts easily)
-# Using 'pythonw' instead of 'python' prevents a black console window from staying open
-$WrapperContent = "Start-Process pythonw -ArgumentList `"$ScriptPath`" -WindowStyle Hidden"
+# 3. Create a wrapper script 
+# We use single quotes for the outer string so the inner double quotes stay intact
+$WrapperContent = 'Start-Process pythonw -ArgumentList "' + $ScriptPath + '" -WindowStyle Hidden'
 Set-Content -Path $BinLink -Value $WrapperContent
 
-# 4. Add to PowerShell Profile (Equivalent to .zshrc)
+# 4. Add to PowerShell Profile
 if (-not (Test-Path $PROFILE)) {
     New-Item -ItemType File -Path $PROFILE -Force | Out-Null
 }
 
-# Define the function for the profile
 $FuncCmd = "`nfunction repos { & `"$BinLink`" }"
 
 # Clean up old versions and add the new function
-$ProfileContent = Get-Content $PROFILE
+$ProfileContent = Get-Content $PROFILE -ErrorAction SilentlyContinue
 $NewContent = $ProfileContent | Where-Object { $_ -notmatch 'function repos' }
 $NewContent + $FuncCmd | Set-Content $PROFILE
 
