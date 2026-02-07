@@ -45,3 +45,5 @@ Directory setup:
 - Windows setup/script, test on mac
 - Single installer
 - Add configurable search depth
+- Git sign in: See requested reviews & your open PRs
+- Add repo (clone) btn
