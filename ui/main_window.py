@@ -10,14 +10,14 @@ from ui.theme import *
 from ui.settings import SettingsWindow
 from ui.login_window import LoginWindow
 from services.git_service import get_git_repos
-import services.config as config
+import services.config  as config
 from services.auth_service import AuthService
 
 class DarkRepoLauncher:
     def __init__(self, root):
         self.root = root
         self.root.title("Git Repo Dashboard")
-        self.root.geometry("550x650")
+        self.root.geometry("550x700")
         self.root.configure(bg=BG_MAIN)
 
         self.root.protocol("WM_DELETE_WINDOW", self.quit_app)

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- CONFIGURATION ---
-DASHBOARD_FILE="git-dashboard.py"
+DASHBOARD_FILE="app.py"
 SCRIPT_PATH="$(pwd)/$DASHBOARD_FILE"
 BIN_DIR="$HOME/.local/bin"
 BIN_LINK="$BIN_DIR/repos"

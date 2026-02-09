@@ -1,5 +1,5 @@
 ﻿# --- CONFIGURATION ---
-$ScriptPath = Join-Path (Get-Location) "git-dashboard-windows.py"
+$ScriptPath = Join-Path (Get-Location) "app.py"
 $BinDir = Join-Path $HOME ".local\bin"  # Use backslashes for Windows paths
 $BinLink = Join-Path $BinDir "repos.ps1"
 
