@@ -55,7 +55,6 @@ Click the Settings (⚙) icon to configure:
 
 ## 📝 To-Do List:
 - [ ] UI Tweak: Use search icon instead of text.
-- [ ] Refactor: Split script into `ui.py`, `services.py`, and `main.py`.
 - [ ] Configurable Depth: Add setting to control how deep the script scans for .git folders.
 - [ ] GitHub Integration: Display requested reviews and open PR count.
   - [ ] GitHub Sign In: UI and funcitons to sign into git.
