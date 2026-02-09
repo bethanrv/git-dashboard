@@ -154,21 +154,21 @@ class DarkRepoLauncher:
             font=FONT_SMALL,
         ).pack(anchor="w", padx=15)
 
-        self.btn_open = tk.Label(
-            root,
-            text=f"OPEN IN {config.get_editor().upper()}",
-            bg=SUCCESS,
-            fg="white",
-            font=FONT_BOLD,
-            pady=12,
-            cursor="hand2",
-        )
-        self.btn_open.pack(fill=tk.X, padx=15, pady=15)
-        self.btn_open.bind("<Button-1>", lambda e: self.open_repo())
-        self.btn_open.bind(
-            "<Enter>", lambda e: self.btn_open.configure(bg=SUCCESS_HOVER)
-        )
-        self.btn_open.bind("<Leave>", lambda e: self.btn_open.configure(bg=SUCCESS))
+        # self.btn_open = tk.Label(
+        #     root,
+        #     text=f"OPEN IN {config.get_editor().upper()}",
+        #     bg=SUCCESS,
+        #     fg="white",
+        #     font=FONT_BOLD,
+        #     pady=12,
+        #     cursor="hand2",
+        # )
+        # self.btn_open.pack(fill=tk.X, padx=15, pady=15)
+        # self.btn_open.bind("<Button-1>", lambda e: self.open_repo())
+        # self.btn_open.bind(
+        #     "<Enter>", lambda e: self.btn_open.configure(bg=SUCCESS_HOVER)
+        # )
+        # self.btn_open.bind("<Leave>", lambda e: self.btn_open.configure(bg=SUCCESS))
 
         # --- PR SECTION ---
         self.pr_frame = tk.Frame(root, bg=BG_MAIN)
@@ -303,7 +303,7 @@ class DarkRepoLauncher:
         self.all_repos = get_git_repos(config.get_base_path())
         col = "Last Commit" if self.sort_reverse["Last Commit"] else "Name"
         self.sort_column(col, toggle=False)
-        self.btn_open.config(text=f"OPEN IN {config.get_editor().upper()}")
+        # self.btn_open.config(text=f"OPEN IN {config.get_editor().upper()}")
         self.load_prs()
         self.load_reviews()
 
