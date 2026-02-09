@@ -5,7 +5,7 @@ from tkinter import ttk
 import subprocess
 import webbrowser
 from ui.theme import *
-from ui.components import SettingsWindow
+from ui.settings import SettingsWindow
 from services.git_service import get_git_repos
 import services.config as config
 
