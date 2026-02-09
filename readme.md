@@ -54,4 +54,5 @@ Click the Settings (⚙) icon to configure:
 ---
 
 ## 📝 To-Do List:
-Done!
+[ ] Test build on mac, windows
+[ ] Async requests + loading animation
