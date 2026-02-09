@@ -12,6 +12,7 @@ from ui.login_window import LoginWindow
 from services.git_service import get_git_repos
 import services.config  as config
 from services.auth_service import AuthService
+import threading
 
 class DarkRepoLauncher:
     def __init__(self, root):
@@ -52,6 +53,18 @@ class DarkRepoLauncher:
         )
         self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, ipady=4)
         self.search_entry.focus_set()
+
+        self.btn_add = tk.Label(
+            top_frame,
+            text=ICONS.get("ADD_ICON", "+"),
+            bg=BG_HEADER,
+            fg=FG_TEXT,
+            font=(SYS_FONT, 14, "bold"),
+            padx=10,
+            cursor="hand2",
+        )
+        self.btn_add.pack(side=tk.LEFT, padx=2)
+        self.btn_add.bind("<Button-1>", lambda e: self.open_clone_window())
 
         self.btn_refresh = tk.Label(top_frame, text=ICONS["RELOAD_ICON"], bg=BG_HEADER,
                                    fg=FG_TEXT, font=(SYS_FONT, 14), padx=8, cursor="hand2")
@@ -387,6 +400,56 @@ class DarkRepoLauncher:
             index = self.rev_tree.index(selection[0])
             if index < len(self.current_reviews):
                 webbrowser.open(self.current_reviews[index]["url"])
+
+    def handle_clone(self, url):
+        """Initializes the background thread for git clone."""
+        base_path = config.get_base_path()
+        
+        if not os.path.exists(base_path):
+            messagebox.showerror("Error", f"Search path does not exist:\n{base_path}")
+            return
+
+        # Update UI to show we are working
+        self.status_var.set(f"Cloning {url}...")
+        self.btn_add.config(fg=HOVER, cursor="watch") # Visual feedback that we're busy
+
+        # Run the clone in a separate thread
+        thread = threading.Thread(target=self.run_clone_process, args=(url, base_path), daemon=True)
+        thread.start()
+
+    def run_clone_process(self, url, base_path):
+        """The actual shell execution (runs in background)."""
+        try:
+            # shell=True is used here to help find 'git' in various environments
+            process = subprocess.run(
+                ["git", "clone", url],
+                cwd=base_path,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            # Switch back to the main thread to update UI
+            self.root.after(0, lambda: self.finalize_clone(True, url))
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr if e.stderr else "Unknown error"
+            self.root.after(0, lambda: self.finalize_clone(False, error_msg))
+        except Exception as e:
+            self.root.after(0, lambda: self.finalize_clone(False, str(e)))
+
+    def finalize_clone(self, success, message):
+        """Updates UI after thread finishes."""
+        self.btn_add.config(fg=FG_TEXT, cursor="hand2")
+        
+        if success:
+            self.status_var.set(f"Successfully cloned repository!")
+            self.refresh_data()
+        else:
+            self.status_var.set("Clone failed.")
+            messagebox.showerror("Clone Error", f"Failed to clone:\n{message}")
+
+    def open_clone_window(self):
+        from ui.clone_window import CloneWindow
+        CloneWindow(self.root, on_clone=self.handle_clone)
 
     def open_settings(self):
         SettingsWindow(self)
