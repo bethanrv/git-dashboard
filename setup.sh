@@ -12,18 +12,27 @@ echo "🚀 Starting Git Repo Dashboard Unified Setup..."
 # Platform Detection & Dependency Install
 if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "🍎 macOS detected"
-    CONF_FILE="$HOME/.zshrc" # Default for modern macOS
+    CONF_FILE="$HOME/.zshrc"
     [[ ! -f "$CONF_FILE" ]] && CONF_FILE="$HOME/.bash_profile"
 
     command -v brew >/dev/null 2>&1 || { echo "❌ Homebrew not found. Install it at https://brew.sh/"; exit 1; }
     python3 -c "import tkinter" &> /dev/null || brew install python-tk
-    pip3 install python-dotenv --quiet
+    pip3 install --upgrade python-dotenv pillow --quiet
 else
     echo "🐧 Linux detected"
     CONF_FILE="$HOME/.bashrc"
 
+    echo "📦 Checking system dependencies..."
+    # Still keep python3-tk as it's a system-level requirement for the UI to even exist
     python3 -c "import tkinter" &> /dev/null || (sudo apt update && sudo apt install -y python3-tk)
-    pip install python-dotenv --quiet
+
+    # We install the system ImageTk as a fallback, but prioritize the Pip upgrade
+    sudo apt-get install -y python3-pil.imagetk
+
+    echo "🐍 Upgrading Python packages..."
+    # Using --upgrade and --force-reinstall to fix the broken PIL/ImageTk link
+    pip3 install --upgrade --force-reinstall pillow
+    pip3 install python-dotenv --quiet
 fi
 
 # Permissions & Binary Link
@@ -31,8 +40,7 @@ chmod +x "$SCRIPT_PATH"
 mkdir -p "$BIN_DIR"
 ln -sf "$SCRIPT_PATH" "$BIN_LINK"
 
-# 3. Clean up old references and append new function
-# Using a temporary file to safely scrub existing 'repos' definitions
+# Clean up old references
 if [ -f "$CONF_FILE" ]; then
     sed -i.bak '/alias repos=/d' "$CONF_FILE" 2>/dev/null || sed -i '' '/alias repos=/d' "$CONF_FILE"
     sed -i.bak '/repos() {/,/}/d' "$CONF_FILE" 2>/dev/null || sed -i '' '/repos() {/,/}/d' "$CONF_FILE"
@@ -45,7 +53,6 @@ echo "✅ Shortcut created at $BIN_LINK"
 echo "------------------------------------------"
 echo "DONE! To start using the command, reload your shell:"
 echo ""
-echo "   source $CONF_FILE"
+echo "    source $CONF_FILE"
 echo ""
-echo "Then simply type 'repos' from any directory."
-echo "------------------------------------------"
+echo "Then type 'repos' to launch."

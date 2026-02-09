@@ -2,9 +2,10 @@ import os
 import sys
 import tkinter as tk
 import webbrowser
-from ui.theme import *
+
 import services.config as config
 from services.auth_service import AuthService
+from ui.theme import *
 
 
 class LoginWindow(tk.Toplevel):
@@ -15,23 +16,51 @@ class LoginWindow(tk.Toplevel):
         self.geometry("400x200")
         self.configure(bg=BG_MAIN)
         self.transient(parent)
+        self.wait_visibility()
         self.grab_set()
 
-        tk.Label(self, text="Enter GitHub Personal Access Token", 
-                 bg=BG_MAIN, fg=ACCENT, font=FONT_BOLD).pack(pady=10)
-        
-        # Link to help users find where to get a token
-        help_link = tk.Label(self, text="Where do I get a token?", 
-                             bg=BG_MAIN, fg="#888888", font=FONT_SMALL, cursor="hand2")
-        help_link.pack()
-        help_link.bind("<Button-1>", lambda e: webbrowser.open("https://github.com/settings/tokens"))
+        tk.Label(
+            self,
+            text="Enter GitHub Personal Access Token",
+            bg=BG_MAIN,
+            fg=ACCENT,
+            font=FONT_BOLD,
+        ).pack(pady=10)
 
-        self.token_entry = tk.Entry(self, bg=BG_STRIPE, fg=FG_TEXT, 
-                                    insertbackground=FG_TEXT, borderwidth=0, show="*")
+        # Link to help users find where to get a token
+        help_link = tk.Label(
+            self,
+            text="Where do I get a token?",
+            bg=BG_MAIN,
+            fg="#888888",
+            font=FONT_SMALL,
+            cursor="hand2",
+        )
+        help_link.pack()
+        help_link.bind(
+            "<Button-1>",
+            lambda e: webbrowser.open("https://github.com/settings/tokens"),
+        )
+
+        self.token_entry = tk.Entry(
+            self,
+            bg=BG_STRIPE,
+            fg=FG_TEXT,
+            insertbackground=FG_TEXT,
+            borderwidth=0,
+            show="*",
+        )
         self.token_entry.pack(fill=tk.X, padx=30, pady=20, ipady=4)
 
-        self.btn_login = tk.Label(self, text="VERIFY & SAVE", bg=SUCCESS, 
-                                  fg="white", font=FONT_BOLD, pady=8, cursor="hand2")
+        self.btn_login = tk.Label(
+            self,
+            text="VERIFY & SAVE",
+            bg=SUCCESS,
+            fg="white",
+            font=FONT_BOLD,
+            pady=8,
+            cursor="hand2",
+        )
         self.btn_login.pack(fill=tk.X, padx=30)
         self.btn_login.bind("<Button-1>", lambda e: self.attempt_login())
 

@@ -1,18 +1,20 @@
 import os
-import sys
-import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
-from PIL import Image, ImageTk
 import subprocess
-import webbrowser
-from ui.theme import *
-from ui.settings import SettingsWindow
-from ui.login_window import LoginWindow
-from services.git_service import get_git_repos
-import services.config  as config
-from services.auth_service import AuthService
+import sys
 import threading
+import tkinter as tk
+import webbrowser
+from tkinter import messagebox, ttk
+
+from PIL import Image, ImageTk
+
+import services.config as config
+from services.auth_service import AuthService
+from services.git_service import get_git_repos
+from ui.login_window import LoginWindow
+from ui.settings import SettingsWindow
+from ui.theme import *
+
 
 class DarkRepoLauncher:
     def __init__(self, root):
@@ -38,18 +40,26 @@ class DarkRepoLauncher:
 
         search_container = tk.Frame(top_frame, bg=BG_STRIPE)
         search_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
-        
+
         tk.Label(
-            search_container, text=ICONS["SEARCH_ICON"], 
-            bg=BG_STRIPE, fg=FG_TEXT, font=(SYS_FONT, 12)
+            search_container,
+            text=ICONS["SEARCH_ICON"],
+            bg=BG_STRIPE,
+            fg=FG_TEXT,
+            font=(SYS_FONT, 12),
         ).pack(side=tk.LEFT, padx=(10, 0))
 
         self.search_var = tk.StringVar()
         self.search_var.trace("w", self.update_list)
         self.search_entry = tk.Entry(
-            search_container, textvariable=self.search_var,
-            bg=BG_STRIPE, fg=FG_TEXT, insertbackground=FG_TEXT,
-            borderwidth=0, highlightthickness=0, font=FONT_MAIN,
+            search_container,
+            textvariable=self.search_var,
+            bg=BG_STRIPE,
+            fg=FG_TEXT,
+            insertbackground=FG_TEXT,
+            borderwidth=0,
+            highlightthickness=0,
+            font=FONT_MAIN,
         )
         self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, ipady=4)
         self.search_entry.focus_set()
@@ -66,44 +76,60 @@ class DarkRepoLauncher:
         self.btn_add.pack(side=tk.LEFT, padx=2)
         self.btn_add.bind("<Button-1>", lambda e: self.open_clone_window())
 
-        self.btn_refresh = tk.Label(top_frame, text=ICONS["RELOAD_ICON"], bg=BG_HEADER,
-                                   fg=FG_TEXT, font=(SYS_FONT, 14), padx=8, cursor="hand2")
+        self.btn_refresh = tk.Label(
+            top_frame,
+            text=ICONS["RELOAD_ICON"],
+            bg=BG_HEADER,
+            fg=FG_TEXT,
+            font=(SYS_FONT, 14),
+            padx=8,
+            cursor="hand2",
+        )
         self.btn_refresh.pack(side=tk.LEFT, padx=2)
         self.btn_refresh.bind("<Button-1>", lambda e: self.refresh_data())
 
-        self.btn_settings = tk.Label(top_frame, text=ICONS["SETTINGS_ICON"], bg=BG_HEADER,
-                                    fg=FG_TEXT, font=(SYS_FONT, 14), padx=8, cursor="hand2")
+        self.btn_settings = tk.Label(
+            top_frame,
+            text=ICONS["SETTINGS_ICON"],
+            bg=BG_HEADER,
+            fg=FG_TEXT,
+            font=(SYS_FONT, 14),
+            padx=8,
+            cursor="hand2",
+        )
         self.btn_settings.pack(side=tk.LEFT, padx=2)
         self.btn_settings.bind("<Button-1>", lambda e: self.open_settings())
 
         # --- REPO TABLE WITH SCROLLBAR ---
         self.tree_frame = tk.Frame(root, bg=BG_MAIN)
         self.tree_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
-        
+
         # self.tree = ttk.Treeview(self.tree_frame, columns=("Name", "Link", "Last Commit",), show="headings")
-        
+
         # Add Scrollbar
         # repo_scroll = ttk.Scrollbar(self.tree_frame, orient="vertical", command=self.tree.yview)
         # self.tree.configure(yscrollcommand=repo_scroll.set)
-        
-        self.tree = ttk.Treeview(self.tree_frame, columns=("Name", "Link", "Last Commit"), show="headings")
+
+        self.tree = ttk.Treeview(
+            self.tree_frame, columns=("Name", "Link", "Last Commit"), show="headings"
+        )
 
         self.tree.heading("Name", text=" NAME")
-        self.tree.heading("Link", text="") 
+        self.tree.heading("Link", text="")
         self.tree.heading("Last Commit", text=" LAST COMMIT")
 
         self.tree.column("Name", width=300, anchor="w")
-        self.tree.column("Link", width=50, anchor="center") # Centering the icon
+        self.tree.column("Link", width=50, anchor="center")  # Centering the icon
         self.tree.column("Last Commit", width=100, anchor="e")
 
         # Use ONLY the selection event for the icon toggle
         self.tree.bind("<<TreeviewSelect>>", self.handle_selection)
         # Use a separate click event ONLY for the browser opening
         self.tree.bind("<Button-1>", self.handle_click)
-        
+
         self.tree.tag_configure("oddrow", background=BG_MAIN)
         self.tree.tag_configure("evenrow", background=BG_STRIPE)
-        
+
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         # repo_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
@@ -139,25 +165,31 @@ class DarkRepoLauncher:
         self.pr_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
 
         tk.Label(
-            self.pr_frame, text="OPEN PULL REQUESTS", 
-            bg=BG_MAIN, fg=ACCENT, font=FONT_BOLD, anchor="w"
+            self.pr_frame,
+            text="OPEN PULL REQUESTS",
+            bg=BG_MAIN,
+            fg=ACCENT,
+            font=FONT_BOLD,
+            anchor="w",
         ).pack(fill=tk.X, pady=(0, 5))
 
         # Revised columns: Repo, Title, Review Status, CI/Actions Status
         self.pr_tree = ttk.Treeview(
-            self.pr_frame, columns=("Repo", "Title", "Review", "Actions"), 
-            show="headings", height=4 
+            self.pr_frame,
+            columns=("Repo", "Title", "Review", "Actions"),
+            show="headings",
+            height=4,
         )
         self.pr_tree.heading("Repo", text=" REPO")
         self.pr_tree.heading("Title", text=" TITLE")
         self.pr_tree.heading("Review", text=" REVIEW")
         self.pr_tree.heading("Actions", text=" ACTIONS")
-        
+
         self.pr_tree.column("Repo", width=90, stretch=False)
         self.pr_tree.column("Title", width=250, stretch=True)
         self.pr_tree.column("Review", width=100, anchor="center", stretch=False)
         self.pr_tree.column("Actions", width=80, anchor="center", stretch=False)
-        
+
         self.pr_tree.tag_configure("oddrow", background=BG_MAIN)
         self.pr_tree.tag_configure("evenrow", background=BG_STRIPE)
         self.pr_tree.pack(fill=tk.X)
@@ -168,22 +200,28 @@ class DarkRepoLauncher:
         self.rev_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
 
         tk.Label(
-            self.rev_frame, text="REVIEW REQUESTS", 
-            bg=BG_MAIN, fg="#FFA500", font=FONT_BOLD, anchor="w" # Orange color for urgency
+            self.rev_frame,
+            text="REVIEW REQUESTS",
+            bg=BG_MAIN,
+            fg="#FFA500",
+            font=FONT_BOLD,
+            anchor="w",  # Orange color for urgency
         ).pack(fill=tk.X, pady=(0, 5))
 
         self.rev_tree = ttk.Treeview(
-            self.rev_frame, columns=("Repo", "Author", "Title"), 
-            show="headings", height=3 
+            self.rev_frame,
+            columns=("Repo", "Author", "Title"),
+            show="headings",
+            height=3,
         )
         self.rev_tree.heading("Repo", text=" REPO")
         self.rev_tree.heading("Author", text=" AUTHOR")
         self.rev_tree.heading("Title", text=" TITLE")
-        
+
         self.rev_tree.column("Repo", width=100, stretch=False)
         self.rev_tree.column("Author", width=100, stretch=False)
         self.rev_tree.column("Title", width=250, stretch=True)
-        
+
         self.rev_tree.tag_configure("oddrow", background=BG_MAIN)
         self.rev_tree.tag_configure("evenrow", background=BG_STRIPE)
         self.rev_tree.pack(fill=tk.X)
@@ -209,11 +247,13 @@ class DarkRepoLauncher:
             # Safer pathing: looks for 'assets' inside the same folder as this file
             current_dir = os.path.dirname(os.path.abspath(__file__))
             asset_path = os.path.join(current_dir, "assets", "git-icon-white.png")
-            
+
             img = Image.open(asset_path)
-            img = img.resize((24, 24), Image.Resampling.LANCZOS) # Slightly smaller than 32 for better fit
+            img = img.resize(
+                (24, 24), Image.Resampling.LANCZOS
+            )  # Slightly smaller than 32 for better fit
             self.logo_img = ImageTk.PhotoImage(img)
-            
+
             logo_label = tk.Label(bottom_frame, image=self.logo_img, bg=BG_MAIN)
             logo_label.pack(side=tk.RIGHT, padx=(10, 0))
         except Exception as e:
@@ -224,12 +264,12 @@ class DarkRepoLauncher:
             bottom_frame,
             text="Sign In",
             bg=BG_MAIN,
-            fg=ACCENT, # Use your theme accent color (blue/light blue)
+            fg=ACCENT,  # Use your theme accent color (blue/light blue)
             font=FONT_SMALL,
-            cursor="hand2"
+            cursor="hand2",
         )
         self.btn_signin.pack(side=tk.RIGHT)
-        
+
         # Simple hover effect
         self.btn_signin.bind("<Enter>", lambda e: self.btn_signin.configure(fg="white"))
         self.btn_signin.bind("<Leave>", lambda e: self.btn_signin.configure(fg=ACCENT))
@@ -244,7 +284,7 @@ class DarkRepoLauncher:
         # 1. Clear icons from all rows
         for item in self.tree.get_children():
             vals = list(self.tree.item(item, "values"))
-            if vals[1] != "": # Only update if not already empty to save performance
+            if vals[1] != "":  # Only update if not already empty to save performance
                 vals[1] = ""
                 self.tree.item(item, values=vals)
 
@@ -254,7 +294,7 @@ class DarkRepoLauncher:
             item_id = selection[0]
             index = self.tree.index(item_id)
             repo = self.filtered_repos[index]
-            
+
             if repo.get("remote_url"):
                 vals = list(self.tree.item(item_id, "values"))
                 vals[1] = ICONS["GLOBE_ICON"]
@@ -265,7 +305,7 @@ class DarkRepoLauncher:
         region = self.tree.identify_region(event.x, event.y)
         if region == "cell":
             column = self.tree.identify_column(event.x)
-            if column == "#2": # The Link column
+            if column == "#2":  # The Link column
                 item_id = self.tree.identify_row(event.y)
                 if item_id:
                     index = self.tree.index(item_id)
@@ -280,8 +320,7 @@ class DarkRepoLauncher:
     def refresh_data(self):
         config.reload_config()
         self.all_repos = get_git_repos(
-            config.get_base_path(), 
-            max_depth=config.get_search_depth()
+            config.get_base_path(), max_depth=config.get_search_depth()
         )
         col = "Last Commit" if self.sort_reverse["Last Commit"] else "Name"
         self.sort_column(col, toggle=False)
@@ -293,17 +332,21 @@ class DarkRepoLauncher:
         search_term = self.search_var.get().lower()
         for item in self.tree.get_children():
             self.tree.delete(item)
-        
+
         self.filtered_repos = []
         count = 0
         for repo in self.all_repos:
             if search_term in repo["name"].lower():
                 tag = "evenrow" if count % 2 == 0 else "oddrow"
-                
+
                 self.tree.insert(
                     "",
                     tk.END,
-                    values=(f"  {repo['name']}", "", repo["time_ago"]), # Empty middle col
+                    values=(
+                        f"  {repo['name']}",
+                        "",
+                        repo["time_ago"],
+                    ),  # Empty middle col
                     tags=(tag,),
                 )
                 self.filtered_repos.append(repo)
@@ -345,13 +388,21 @@ class DarkRepoLauncher:
         if self.current_user:
             self.btn_signin.config(text=f"@{self.current_user}", fg="#888888")
             # Change hover to indicate logout
-            self.btn_signin.bind("<Enter>", lambda e: self.btn_signin.configure(fg="#a83232")) # Red for logout
-            self.btn_signin.bind("<Leave>", lambda e: self.btn_signin.configure(fg="#888888"))
+            self.btn_signin.bind(
+                "<Enter>", lambda e: self.btn_signin.configure(fg="#a83232")
+            )  # Red for logout
+            self.btn_signin.bind(
+                "<Leave>", lambda e: self.btn_signin.configure(fg="#888888")
+            )
             self.btn_signin.bind("<Button-1>", lambda e: self.confirm_logout())
         else:
             self.btn_signin.config(text="Sign In", fg=ACCENT)
-            self.btn_signin.bind("<Enter>", lambda e: self.btn_signin.configure(fg="white"))
-            self.btn_signin.bind("<Leave>", lambda e: self.btn_signin.configure(fg=ACCENT))
+            self.btn_signin.bind(
+                "<Enter>", lambda e: self.btn_signin.configure(fg="white")
+            )
+            self.btn_signin.bind(
+                "<Leave>", lambda e: self.btn_signin.configure(fg=ACCENT)
+            )
             self.btn_signin.bind("<Button-1>", lambda e: self.open_login())
 
     def open_login(self):
@@ -376,33 +427,32 @@ class DarkRepoLauncher:
         """Fetches and displays PRs with detailed Review and Actions status."""
         for item in self.pr_tree.get_children():
             self.pr_tree.delete(item)
-            
+
         if not self.current_user:
             return
 
-        from services.git_service import fetch_open_prs 
+        from services.git_service import fetch_open_prs
+
         self.current_prs = fetch_open_prs()
-        
+
         for i, pr in enumerate(self.current_prs):
             tag = "evenrow" if i % 2 == 0 else "oddrow"
-            
+
             # Map statuses to icons/cleaner text if desired
             review = pr.get("review_status", "Pending")
             actions = pr.get("ci_status", "Running")
-            
+
             # Optional: Visual shorthand
-            if actions == "success": actions = "✓"
-            if actions == "failure": actions = "✗"
-            
+            if actions == "success":
+                actions = "✓"
+            if actions == "failure":
+                actions = "✗"
+
             self.pr_tree.insert(
-                "", tk.END, 
-                values=(
-                    pr["repo"], 
-                    pr["title"], 
-                    review, 
-                    actions
-                ), 
-                tags=(tag,)
+                "",
+                tk.END,
+                values=(pr["repo"], pr["title"], review, actions),
+                tags=(tag,),
             )
 
     def open_selected_pr(self, event):
@@ -419,19 +469,21 @@ class DarkRepoLauncher:
         """Fetches and displays PRs where a review is requested from the user."""
         for item in self.rev_tree.get_children():
             self.rev_tree.delete(item)
-            
+
         if not self.current_user:
             return
 
         from services.git_service import fetch_review_requests
+
         self.current_reviews = fetch_review_requests()
-        
+
         for i, rev in enumerate(self.current_reviews):
             tag = "evenrow" if i % 2 == 0 else "oddrow"
             self.rev_tree.insert(
-                "", tk.END, 
-                values=(rev["repo"], f"@{rev['author']}", rev["title"]), 
-                tags=(tag,)
+                "",
+                tk.END,
+                values=(rev["repo"], f"@{rev['author']}", rev["title"]),
+                tags=(tag,),
             )
 
     def open_selected_review(self, event):
@@ -444,17 +496,19 @@ class DarkRepoLauncher:
     def handle_clone(self, url):
         """Initializes the background thread for git clone."""
         base_path = config.get_base_path()
-        
+
         if not os.path.exists(base_path):
             messagebox.showerror("Error", f"Search path does not exist:\n{base_path}")
             return
 
         # Update UI to show we are working
         self.status_var.set(f"Cloning {url}...")
-        self.btn_add.config(fg=HOVER, cursor="watch") # Visual feedback that we're busy
+        self.btn_add.config(fg=HOVER, cursor="watch")  # Visual feedback that we're busy
 
         # Run the clone in a separate thread
-        thread = threading.Thread(target=self.run_clone_process, args=(url, base_path), daemon=True)
+        thread = threading.Thread(
+            target=self.run_clone_process, args=(url, base_path), daemon=True
+        )
         thread.start()
 
     def run_clone_process(self, url, base_path):
@@ -466,7 +520,7 @@ class DarkRepoLauncher:
                 cwd=base_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             # Switch back to the main thread to update UI
             self.root.after(0, lambda: self.finalize_clone(True, url))
@@ -479,7 +533,7 @@ class DarkRepoLauncher:
     def finalize_clone(self, success, message):
         """Updates UI after thread finishes."""
         self.btn_add.config(fg=FG_TEXT, cursor="hand2")
-        
+
         if success:
             self.status_var.set(f"Successfully cloned repository!")
             self.refresh_data()
@@ -489,6 +543,7 @@ class DarkRepoLauncher:
 
     def open_clone_window(self):
         from ui.clone_window import CloneWindow
+
         CloneWindow(self.root, on_clone=self.handle_clone)
 
     def open_settings(self):
