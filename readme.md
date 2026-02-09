@@ -54,4 +54,4 @@ Click the Settings (⚙) icon to configure:
 ---
 
 ## 📝 To-Do List:
-- [ ] Clone Button: Add a UI element to clone a new repo directly into the base path.
+Done!
