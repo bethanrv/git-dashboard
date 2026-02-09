@@ -57,3 +57,5 @@ Click the Settings (⚙) icon to configure:
 [ ] Test build on mac, windows
 [ ] loading animationfor requests
 [ ] Actions showing success on multiple checks including 1 failure
+[ ] Linux search icon malformed
+[ ] Add screenshots to readme
