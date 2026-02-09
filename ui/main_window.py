@@ -2,12 +2,16 @@ import os
 import sys
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
+from PIL import Image, ImageTk
 import subprocess
 import webbrowser
 from ui.theme import *
 from ui.settings import SettingsWindow
+from ui.login_window import LoginWindow
 from services.git_service import get_git_repos
 import services.config as config
+from services.auth_service import AuthService
 
 class DarkRepoLauncher:
     def __init__(self, root):
@@ -166,6 +170,109 @@ class DarkRepoLauncher:
         )
         self.btn_open.bind("<Leave>", lambda e: self.btn_open.configure(bg=SUCCESS))
 
+        # --- PR SECTION ---
+        self.pr_frame = tk.Frame(root, bg=BG_MAIN)
+        self.pr_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
+
+        tk.Label(
+            self.pr_frame, text="OPEN PULL REQUESTS", 
+            bg=BG_MAIN, fg=ACCENT, font=FONT_BOLD, anchor="w"
+        ).pack(fill=tk.X, pady=(0, 5))
+
+        # We'll use a smaller Treeview for PRs
+        self.pr_tree = ttk.Treeview(
+            self.pr_frame, columns=("Repo", "Title", "Status"), 
+            show="headings", height=4 # Show 4 PRs before scrolling
+        )
+        self.pr_tree.heading("Repo", text=" REPO")
+        self.pr_tree.heading("Title", text=" TITLE")
+        self.pr_tree.heading("Status", text=" STAT")
+        
+        self.pr_tree.column("Repo", width=100, stretch=False)
+        self.pr_tree.column("Title", width=300, stretch=True)
+        self.pr_tree.column("Status", width=60, anchor="center", stretch=False)
+        
+        self.pr_tree.tag_configure("oddrow", background=BG_MAIN)
+        self.pr_tree.tag_configure("evenrow", background=BG_STRIPE)
+        self.pr_tree.pack(fill=tk.X)
+
+        # Bind click to open PR in browser
+        self.pr_tree.bind("<Double-1>", self.open_selected_pr)
+
+        # --- REVIEWS SECTION ---
+        self.rev_frame = tk.Frame(root, bg=BG_MAIN)
+        self.rev_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
+
+        tk.Label(
+            self.rev_frame, text="REVIEW REQUESTS", 
+            bg=BG_MAIN, fg="#FFA500", font=FONT_BOLD, anchor="w" # Orange color for urgency
+        ).pack(fill=tk.X, pady=(0, 5))
+
+        self.rev_tree = ttk.Treeview(
+            self.rev_frame, columns=("Repo", "Author", "Title"), 
+            show="headings", height=3 
+        )
+        self.rev_tree.heading("Repo", text=" REPO")
+        self.rev_tree.heading("Author", text=" AUTHOR")
+        self.rev_tree.heading("Title", text=" TITLE")
+        
+        self.rev_tree.column("Repo", width=100, stretch=False)
+        self.rev_tree.column("Author", width=100, stretch=False)
+        self.rev_tree.column("Title", width=250, stretch=True)
+        
+        self.rev_tree.tag_configure("oddrow", background=BG_MAIN)
+        self.rev_tree.tag_configure("evenrow", background=BG_STRIPE)
+        self.rev_tree.pack(fill=tk.X)
+
+        self.rev_tree.bind("<Double-1>", self.open_selected_review)
+
+        # --- BOTTOM BAR (Status, Sign In, and Logo) ---
+        bottom_frame = tk.Frame(root, bg=BG_MAIN)
+        bottom_frame.pack(fill=tk.X, side=tk.BOTTOM, padx=15, pady=(0, 10))
+
+        # Status Label (Left)
+        self.status_var = tk.StringVar()
+        tk.Label(
+            bottom_frame,
+            textvariable=self.status_var,
+            bg=BG_MAIN,
+            fg="#666666",
+            font=FONT_SMALL,
+        ).pack(side=tk.LEFT)
+
+        # --- LOGO LOADING ---
+        try:
+            # Safer pathing: looks for 'assets' inside the same folder as this file
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            asset_path = os.path.join(current_dir, "assets", "git-icon-white.png")
+            
+            img = Image.open(asset_path)
+            img = img.resize((24, 24), Image.Resampling.LANCZOS) # Slightly smaller than 32 for better fit
+            self.logo_img = ImageTk.PhotoImage(img)
+            
+            logo_label = tk.Label(bottom_frame, image=self.logo_img, bg=BG_MAIN)
+            logo_label.pack(side=tk.RIGHT, padx=(10, 0))
+        except Exception as e:
+            print(f"Could not load logo: {e}")
+
+        # Sign In Link (Next to Logo)
+        self.btn_signin = tk.Label(
+            bottom_frame,
+            text="Sign In",
+            bg=BG_MAIN,
+            fg=ACCENT, # Use your theme accent color (blue/light blue)
+            font=FONT_SMALL,
+            cursor="hand2"
+        )
+        self.btn_signin.pack(side=tk.RIGHT)
+        
+        # Simple hover effect
+        self.btn_signin.bind("<Enter>", lambda e: self.btn_signin.configure(fg="white"))
+        self.btn_signin.bind("<Leave>", lambda e: self.btn_signin.configure(fg=ACCENT))
+        self.btn_signin.bind("<Button-1>", lambda e: self.handle_signin())
+
+        self.setUser()
+
         self.refresh_data()
 
     def handle_selection(self, event):
@@ -197,6 +304,8 @@ class DarkRepoLauncher:
         col = "Last Commit" if self.sort_reverse["Last Commit"] else "Name"
         self.sort_column(col, toggle=False)
         self.btn_open.config(text=f"OPEN IN {config.get_editor().upper()}")
+        self.load_prs()
+        self.load_reviews()
 
     def update_list(self, *args):
         self.globe_btn.place_forget()
@@ -245,6 +354,96 @@ class DarkRepoLauncher:
                 else:
                     cmd = "open" if sys.platform == "darwin" else "xdg-open"
                     subprocess.Popen([cmd, path])
+
+    def handle_signin(self):
+        webbrowser.open("https://github.com/login")
+
+    def update_auth_ui(self):
+        if self.current_user:
+            self.btn_signin.config(text=f"@{self.current_user}", fg="#888888")
+            # Change hover to indicate logout
+            self.btn_signin.bind("<Enter>", lambda e: self.btn_signin.configure(fg="#a83232")) # Red for logout
+            self.btn_signin.bind("<Leave>", lambda e: self.btn_signin.configure(fg="#888888"))
+            self.btn_signin.bind("<Button-1>", lambda e: self.confirm_logout())
+        else:
+            self.btn_signin.config(text="Sign In", fg=ACCENT)
+            self.btn_signin.bind("<Enter>", lambda e: self.btn_signin.configure(fg="white"))
+            self.btn_signin.bind("<Leave>", lambda e: self.btn_signin.configure(fg=ACCENT))
+            self.btn_signin.bind("<Button-1>", lambda e: self.open_login())
+
+    def open_login(self):
+        LoginWindow(self.root, on_success=self.handle_login_success)
+
+    def handle_login_success(self, username):
+        self.current_user = username
+        self.update_auth_ui()
+        self.status_var.set(f"Logged in as {username}")
+
+    def confirm_logout(self):
+        if tk.messagebox.askyesno("Logout", "Are you sure you want to sign out?"):
+            AuthService.logout()
+            self.current_user = None
+            self.update_auth_ui()
+
+    def setUser(self):
+        self.current_user = AuthService.get_current_user()
+        self.update_auth_ui()
+
+    def load_prs(self):
+        """Fetches and displays PRs from GitHub."""
+        # Clear existing
+        for item in self.pr_tree.get_children():
+            self.pr_tree.delete(item)
+            
+        if not self.current_user:
+            return
+
+        from services.git_service import fetch_open_prs # Ensure this exists in git_service
+        self.current_prs = fetch_open_prs()
+        
+        for i, pr in enumerate(self.current_prs):
+            tag = "evenrow" if i % 2 == 0 else "oddrow"
+            self.pr_tree.insert(
+                "", tk.END, 
+                values=(pr["repo"], pr["title"], pr["status"]), 
+                tags=(tag,)
+            )
+
+    def open_selected_pr(self, event):
+        """Opens the selected PR URL in the default browser."""
+        selection = self.pr_tree.selection()
+        if selection:
+            # Get index of selected item to find the URL in our list
+            item_id = selection[0]
+            index = self.pr_tree.index(item_id)
+            if index < len(self.current_prs):
+                webbrowser.open(self.current_prs[index]["url"])
+
+    def load_reviews(self):
+        """Fetches and displays PRs where a review is requested from the user."""
+        for item in self.rev_tree.get_children():
+            self.rev_tree.delete(item)
+            
+        if not self.current_user:
+            return
+
+        from services.git_service import fetch_review_requests
+        self.current_reviews = fetch_review_requests()
+        
+        for i, rev in enumerate(self.current_reviews):
+            tag = "evenrow" if i % 2 == 0 else "oddrow"
+            self.rev_tree.insert(
+                "", tk.END, 
+                values=(rev["repo"], f"@{rev['author']}", rev["title"]), 
+                tags=(tag,)
+            )
+
+    def open_selected_review(self, event):
+        selection = self.rev_tree.selection()
+        if selection:
+            index = self.rev_tree.index(selection[0])
+            if index < len(self.current_reviews):
+                webbrowser.open(self.current_reviews[index]["url"])
 
     def open_settings(self):
         SettingsWindow(self)

@@ -1,6 +1,8 @@
 import os
 import re
 from datetime import datetime
+from services.auth_service import AuthService
+import requests
 
 def get_time_ago(timestamp):
     if timestamp == 0: return "Never"
@@ -44,3 +46,50 @@ def get_git_repos(path):
                     "remote_url": extract_git_url(entry.path),
                 })
     return repos
+
+def fetch_open_prs():
+    token = AuthService.get_token()
+    if not token:
+        return []
+    
+    # Search for PRs authored by the user that are open
+    query = "is:open is:pr author:@me"
+    url = f"https://api.github.com/search/issues?q={query}"
+    headers = {"Authorization": f"token {token}"}
+    
+    try:
+        r = requests.get(url, headers=headers, timeout=5)
+        if r.status_code == 200:
+            items = r.json().get("items", [])
+            return [
+                {
+                    "repo": i["repository_url"].split("/")[-1],
+                    "title": i["title"],
+                    "status": "🟢",
+                    "url": i["html_url"]
+                } for i in items
+            ]
+    except:
+        pass
+    return []
+
+def fetch_review_requests():
+    token = AuthService.get_token()
+    if not token: return []
+    
+    query = "is:open is:pr review-requested:@me"
+    url = f"https://api.github.com/search/issues?q={query}"
+    headers = {"Authorization": f"token {token}"}
+    
+    try:
+        r = requests.get(url, headers=headers, timeout=5)
+        if r.status_code == 200:
+            return [{
+                "repo": i["repository_url"].split("/")[-1],
+                "author": i["user"]["login"],
+                "title": i["title"],
+                "url": i["html_url"]
+            } for i in r.json().get("items", [])]
+    except:
+        pass
+    return []
