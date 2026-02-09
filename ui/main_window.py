@@ -49,21 +49,32 @@ class DarkRepoLauncher:
         # UI Components
         top_frame = tk.Frame(root, bg=BG_MAIN)
         top_frame.pack(fill=tk.X, padx=15, pady=(15, 5))
-        tk.Label(top_frame, text="SEARCH", bg=BG_MAIN, fg=ACCENT, font=FONT_BOLD).pack(
-            side=tk.LEFT
-        )
+
+        search_container = tk.Frame(top_frame, bg=BG_STRIPE)
+        search_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        
+        tk.Label(
+            search_container, 
+            text=ICONS["SEARCH_ICON"], 
+            bg=BG_STRIPE, 
+            fg=FG_TEXT,  # Using FG_TEXT (light grey) instead of ACCENT
+            font=(SYS_FONT, 12)
+        ).pack(side=tk.LEFT, padx=(10, 0))
+
 
         self.search_var = tk.StringVar()
         self.search_var.trace("w", self.update_list)
         self.search_entry = tk.Entry(
-            top_frame,
+            search_container,
             textvariable=self.search_var,
             bg=BG_STRIPE,
             fg=FG_TEXT,
             insertbackground=FG_TEXT,
             borderwidth=0,
+            highlightthickness=0,
             font=FONT_MAIN,
         )
+
         self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, ipady=4)
         self.search_entry.focus_set()
 

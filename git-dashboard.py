@@ -57,7 +57,7 @@ def load_icons():
     is_linux = sys.platform.startswith("linux")
     if is_linux:
         return {
-            "GLOBE_ICON": "↗",  # Clean "Open Link" arrow, very safe on Linux
+            "GLOBE_ICON": "↗",  # Clean "Open Link" arrow, safe on Linux
             "SETTINGS_ICON": "⚙",  # Gear usually renders fine on Linux
             "RELOAD_ICON": "↻",  # Refresh usually renders fine
         }

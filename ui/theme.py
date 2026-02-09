@@ -32,11 +32,13 @@ def get_icons():
             "GLOBE_ICON": "↗",
             "SETTINGS_ICON": "⚙",
             "RELOAD_ICON": "↻",
+            "SEARCH_ICON": "⌕",
         }
     return {
         "GLOBE_ICON": "🌐︎",
         "SETTINGS_ICON": "⚙",
         "RELOAD_ICON": "↻",
+        "SEARCH_ICON": "⌕",
     }
 
 ICONS = get_icons()
