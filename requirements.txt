@@ -2,3 +2,4 @@ python-dotenv
 keyring
 requests-oauthlib
 pillow
+httpx

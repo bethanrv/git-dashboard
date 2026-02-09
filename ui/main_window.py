@@ -4,13 +4,14 @@ import sys
 import threading
 import tkinter as tk
 import webbrowser
+import asyncio
 from tkinter import messagebox, ttk
 
 from PIL import Image, ImageTk
 
 import services.config as config
 from services.auth_service import AuthService
-from services.git_service import get_git_repos
+from services.git_service import *
 from ui.login_window import LoginWindow
 from ui.settings import SettingsWindow
 from ui.theme import *
@@ -318,15 +319,68 @@ class DarkRepoLauncher:
             webbrowser.open(self.current_url)
 
     def refresh_data(self):
+        """Refreshes local repos (sync) and GitHub data (async thread)."""
         config.reload_config()
+        
+        # Local file system scanning is usually fast enough to stay sync, 
+        # but we scan the drive first.
         self.all_repos = get_git_repos(
             config.get_base_path(), max_depth=config.get_search_depth()
         )
         col = "Last Commit" if self.sort_reverse["Last Commit"] else "Name"
         self.sort_column(col, toggle=False)
-        # self.btn_open.config(text=f"OPEN IN {config.get_editor().upper()}")
-        self.load_prs()
-        self.load_reviews()
+
+        # Trigger GitHub data fetch in a background thread if logged in
+        if self.current_user:
+            self.status_var.set("Syncing with GitHub...")
+            threading.Thread(target=self.run_async_refresh, daemon=True).start()
+
+    def run_async_refresh(self):
+        """Background thread to handle asyncio calls."""
+        try:
+            # Create a new event loop for this thread to run our async services
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            # Run PRs and Reviews concurrently
+            prs, reviews = loop.run_until_complete(asyncio.gather(
+                fetch_open_prs_async(),
+                fetch_review_requests_async()
+            ))
+            
+            # Push the data back to the main UI thread
+            self.root.after(0, lambda: self.finalize_github_data(prs, reviews))
+        except Exception as e:
+            print(f"Async refresh error: {e}")
+            self.root.after(0, lambda: self.status_var.set("GitHub Sync Failed"))
+
+    def finalize_github_data(self, prs, reviews):
+        """Updates the Treeviews with fetched data (Main Thread)."""
+        self.current_prs = prs
+        self.current_reviews = reviews
+        
+        # Update PR Table
+        for item in self.pr_tree.get_children():
+            self.pr_tree.delete(item)
+        for i, pr in enumerate(self.current_prs):
+            tag = "evenrow" if i % 2 == 0 else "oddrow"
+            review = pr.get("review_status", "Pending")
+            actions = pr.get("ci_status", "Running")
+            
+            # Visual Shorthand
+            ci_icon = "✓" if actions == "Success" else "✗" if actions == "Failure" else "●"
+            
+            self.pr_tree.insert("", tk.END, values=(pr["repo"], pr["title"], review, ci_icon), tags=(tag,))
+
+        # Update Review Table
+        for item in self.rev_tree.get_children():
+            self.rev_tree.delete(item)
+        for i, rev in enumerate(self.current_reviews):
+            tag = "evenrow" if i % 2 == 0 else "oddrow"
+            self.rev_tree.insert("", tk.END, values=(rev["repo"], f"@{rev['author']}", rev["title"]), tags=(tag,))
+        
+        self.status_var.set(f"Dashboard updated: {len(self.all_repos)} repos, {len(prs)} PRs")
+
 
     def update_list(self, *args):
         search_term = self.search_var.get().lower()
@@ -412,12 +466,18 @@ class DarkRepoLauncher:
         self.current_user = username
         self.update_auth_ui()
         self.status_var.set(f"Logged in as {username}")
+        self.refresh_data() # Trigger sync immediately after login
 
     def confirm_logout(self):
         if tk.messagebox.askyesno("Logout", "Are you sure you want to sign out?"):
             AuthService.logout()
             self.current_user = None
             self.update_auth_ui()
+            # Clear GitHub tables
+            for tree in [self.pr_tree, self.rev_tree]:
+                for item in tree.get_children():
+                    tree.delete(item)
+            self.status_var.set("Logged out.")
 
     def setUser(self):
         self.current_user = AuthService.get_current_user()

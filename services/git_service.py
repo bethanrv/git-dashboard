@@ -1,5 +1,7 @@
 import os
 import re
+import asyncio
+import httpx
 from datetime import datetime
 from services.auth_service import AuthService
 import requests
@@ -75,81 +77,74 @@ def get_git_repos(base_path, max_depth=1):
     scan_dir(expanded_root, 1)
     return repos
 
-def fetch_open_prs():
+async def fetch_pr_details(client, item, headers):
+    """Fetches Review and CI status for a single PR in parallel."""
+    repo_full_name = "/".join(item["repository_url"].split("/")[-2:])
+    pr_number = item["number"]
+    
+    # Define the individual detail calls
+    reviews_url = f"https://api.github.com/repos/{repo_full_name}/pulls/{pr_number}/reviews"
+    pr_detail_url = f"https://api.github.com/repos/{repo_full_name}/pulls/{pr_number}"
+    
+    try:
+        # Fetch review list and PR details (to get head SHA) concurrently
+        res_rev, res_pr = await asyncio.gather(
+            client.get(reviews_url, headers=headers, timeout=3),
+            client.get(pr_detail_url, headers=headers, timeout=3)
+        )
+
+        # Process Review Status
+        review_status = "Pending"
+        if res_rev.status_code == 200:
+            revs = res_rev.json()
+            if any(rv["state"] == "APPROVED" for rv in revs): review_status = "Approved"
+            elif any(rv["state"] == "CHANGES_REQUESTED" for rv in revs): review_status = "Needs Work"
+
+        # Process CI Status (Requires a second hop to the Status API using the SHA)
+        actions_status = "NA"
+        if res_pr.status_code == 200:
+            head_sha = res_pr.json()["head"]["sha"]
+            status_url = f"https://api.github.com/repos/{repo_full_name}/commits/{head_sha}/status"
+            res_st = await client.get(status_url, headers=headers, timeout=3)
+            if res_st.status_code == 200:
+                data = res_st.json()
+                state = data.get("state", "None")
+                actions_status = state.capitalize() if data.get("total_count", 0) > 0 else "NA"
+
+        return {
+            "repo": repo_full_name.split("/")[-1],
+            "title": item["title"],
+            "review_status": review_status,
+            "ci_status": actions_status,
+            "url": item["html_url"]
+        }
+    except Exception as e:
+        print(f"Error fetching details for PR {pr_number}: {e}")
+        return None
+
+async def fetch_open_prs_async():
     token = AuthService.get_token()
-    if not token:
-        return []
+    if not token: return []
     
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json"
-    }
-    
-    # 1. Initial Search for your PRs
+    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
     query = "is:open is:pr author:@me"
     search_url = f"https://api.github.com/search/issues?q={query}"
     
-    try:
-        r = requests.get(search_url, headers=headers, timeout=5)
-        if r.status_code != 200:
-            return []
-            
+    async with httpx.AsyncClient() as client:
+        r = await client.get(search_url, headers=headers, timeout=5)
+        if r.status_code != 200: return []
+        
         items = r.json().get("items", [])
-        pr_list = []
+        # Trigger all PR detail fetches at once!
+        tasks = [fetch_pr_details(client, item, headers) for item in items]
+        results = await asyncio.gather(*tasks)
+        
+        return [res for res in results if res]
 
-        for i in items:
-            # We need to extract 'owner/repo' and 'number' for deeper API calls
-            # Repo URL looks like: https://api.github.com/repos/owner/name
-            repo_full_name = "/".join(i["repository_url"].split("/")[-2:])
-            pr_number = i["number"]
-            
-            # --- Fetch Review Status ---
-            review_status = "Pending"
-            reviews_url = f"https://api.github.com/repos/{repo_full_name}/pulls/{pr_number}/reviews"
-            rev_r = requests.get(reviews_url, headers=headers, timeout=3)
-            if rev_r.status_code == 200:
-                revs = rev_r.json()
-                if any(rv["state"] == "APPROVED" for rv in revs):
-                    review_status = "Approved"
-                elif any(rv["state"] == "CHANGES_REQUESTED" for rv in revs):
-                    review_status = "Needs Work"
+def fetch_open_prs():
+    return asyncio.run(fetch_open_prs_async())
 
-            # --- Fetch Actions/CI Status ---
-            actions_status = "None"
-            pr_detail_url = f"https://api.github.com/repos/{repo_full_name}/pulls/{pr_number}"
-            pr_r = requests.get(pr_detail_url, headers=headers, timeout=3)
-            
-            if pr_r.status_code == 200:
-                head_sha = pr_r.json()["head"]["sha"]
-                status_url = f"https://api.github.com/repos/{repo_full_name}/commits/{head_sha}/status"
-                st_r = requests.get(status_url, headers=headers, timeout=3)
-                
-                if st_r.status_code == 200:
-                    data = st_r.json()
-                    state = data.get("state")
-                    total_count = data.get("total_count", 0)
-
-                    # Logic: If total_count is 0, there are no actions/checks
-                    if total_count == 0:
-                        actions_status = "NA"
-                    else:
-                        # Success, Failure, or Pending (actually running)
-                        actions_status = state.capitalize()
-
-            pr_list.append({
-                "repo": repo_full_name.split("/")[-1],
-                "title": i["title"],
-                "review_status": review_status,
-                "ci_status": actions_status,
-                "url": i["html_url"]
-            })
-            
-        return pr_list
-    except Exception as e:
-        print(f"Error fetching PR details: {e}")
-    return []
-
-def fetch_review_requests():
+async def fetch_review_requests_async():
     token = AuthService.get_token()
     if not token: return []
     
@@ -157,15 +152,15 @@ def fetch_review_requests():
     url = f"https://api.github.com/search/issues?q={query}"
     headers = {"Authorization": f"token {token}"}
     
-    try:
-        r = requests.get(url, headers=headers, timeout=5)
-        if r.status_code == 200:
-            return [{
-                "repo": i["repository_url"].split("/")[-1],
-                "author": i["user"]["login"],
-                "title": i["title"],
-                "url": i["html_url"]
-            } for i in r.json().get("items", [])]
-    except:
-        pass
-    return []
+    async with httpx.AsyncClient() as client:
+        r = await client.get(url, headers=headers, timeout=5)
+        if r.status_code != 200: return []
+        return [{
+            "repo": i["repository_url"].split("/")[-1],
+            "author": i["user"]["login"],
+            "title": i["title"],
+            "url": i["html_url"]
+        } for i in r.json().get("items", [])]
+
+def fetch_review_requests():
+    return asyncio.run(fetch_review_requests_async())
