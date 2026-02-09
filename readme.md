@@ -54,5 +54,4 @@ Click the Settings (⚙) icon to configure:
 ---
 
 ## 📝 To-Do List:
-- [ ] Configurable Depth: Add setting to control how deep the script scans for .git folders.
 - [ ] Clone Button: Add a UI element to clone a new repo directly into the base path.

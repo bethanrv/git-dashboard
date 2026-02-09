@@ -6,17 +6,15 @@ import subprocess
 import webbrowser
 from ui.theme import *
 from ui.folder_browser import DarkFolderBrowser
-from services.git_service import get_git_repos
 import services.config as config
 from dotenv import set_key
-
 
 class SettingsWindow(tk.Toplevel):
     def __init__(self, launcher_instance):
         super().__init__(launcher_instance.root)
         self.launcher = launcher_instance
         self.title("Settings")
-        self.geometry("500x320")
+        self.geometry("500x380") # Increased height
         self.configure(bg=BG_MAIN)
         self.transient(launcher_instance.root)
         self.wait_visibility()
@@ -45,6 +43,17 @@ class SettingsWindow(tk.Toplevel):
         self.btn_browse.pack(side=tk.LEFT, padx=(5, 0))
         self.btn_browse.bind("<Button-1>", lambda e: self.browse_folder())
 
+        # --- NEW: Search Depth ---
+        tk.Label(self, text="Search Depth:", bg=BG_MAIN, fg=FG_TEXT).pack(anchor="w", padx=20, pady=(10, 0))
+        
+        # Using a Spinbox for easier numeric selection
+        self.depth_var = tk.StringVar(value=str(config.get_search_depth()))
+        self.depth_spin = ttk.Spinbox(
+            self, from_=1, to=10, textvariable=self.depth_var,
+            style="TSpinbox"
+        )
+        self.depth_spin.pack(anchor="w", padx=20, pady=5)
+
         # Save Button
         self.btn_save = tk.Label(self, text="SAVE & REFRESH", bg=SUCCESS, fg="white", font=FONT_BOLD, pady=8, cursor="hand2")
         self.btn_save.pack(pady=25, padx=20, fill=tk.X)
@@ -62,11 +71,13 @@ class SettingsWindow(tk.Toplevel):
     def save(self):
         new_editor = self.ed_entry.get().strip()
         new_path = self.path_entry.get().strip()
+        new_depth = self.depth_var.get().strip()
 
-        # Write directly to the .env file using the path from our config service
+        # Write directly to the .env file
         set_key(config.ENV_PATH, "EDITOR_COMMAND", new_editor)
         set_key(config.ENV_PATH, "BASE_PATH", new_path)
+        set_key(config.ENV_PATH, "DEPTH", new_depth)
         
-        # Trigger the main window to reload its data and labels
+        # Trigger the main window refresh
         self.launcher.refresh_data()
         self.destroy()

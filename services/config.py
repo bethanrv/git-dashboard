@@ -14,3 +14,6 @@ def get_editor():
 
 def get_base_path():
     return os.getenv("BASE_PATH", os.path.expanduser("~/Documents"))
+
+def get_search_depth():
+    return int(os.getenv("DEPTH", 1))

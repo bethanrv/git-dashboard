@@ -27,28 +27,9 @@ class DarkRepoLauncher:
         self.all_repos = []
         self.filtered_repos = []
 
+        # --- CENTRALIZED STYLING ---
         self.style = ttk.Style()
-        self.style.theme_use("clam")
-        self.style.configure(
-            "Treeview",
-            background=BG_MAIN,
-            foreground=FG_TEXT,
-            fieldbackground=BG_MAIN,
-            borderwidth=0,
-            font=FONT_MAIN,
-        )
-        self.style.map(
-            "Treeview",
-            background=[("selected", SELECTED)],
-            foreground=[("selected", "white")],
-        )
-        self.style.configure(
-            "Treeview.Heading",
-            background=BG_HEADER,
-            foreground=ACCENT,
-            relief="flat",
-            font=FONT_BOLD,
-        )
+        apply_ttk_styles(self.style)
 
         # UI Components
         top_frame = tk.Frame(root, bg=BG_MAIN)
@@ -58,84 +39,53 @@ class DarkRepoLauncher:
         search_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
         
         tk.Label(
-            search_container, 
-            text=ICONS["SEARCH_ICON"], 
-            bg=BG_STRIPE, 
-            fg=FG_TEXT,  # Using FG_TEXT (light grey) instead of ACCENT
-            font=(SYS_FONT, 12)
+            search_container, text=ICONS["SEARCH_ICON"], 
+            bg=BG_STRIPE, fg=FG_TEXT, font=(SYS_FONT, 12)
         ).pack(side=tk.LEFT, padx=(10, 0))
-
 
         self.search_var = tk.StringVar()
         self.search_var.trace("w", self.update_list)
         self.search_entry = tk.Entry(
-            search_container,
-            textvariable=self.search_var,
-            bg=BG_STRIPE,
-            fg=FG_TEXT,
-            insertbackground=FG_TEXT,
-            borderwidth=0,
-            highlightthickness=0,
-            font=FONT_MAIN,
+            search_container, textvariable=self.search_var,
+            bg=BG_STRIPE, fg=FG_TEXT, insertbackground=FG_TEXT,
+            borderwidth=0, highlightthickness=0, font=FONT_MAIN,
         )
-
         self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, ipady=4)
         self.search_entry.focus_set()
 
-        self.btn_refresh = tk.Label(
-            top_frame,
-            text=ICONS["RELOAD_ICON"],
-            bg=BG_HEADER,
-            fg=FG_TEXT,
-            font=(SYS_FONT, 14),
-            padx=8,
-            cursor="hand2",
-        )
+        self.btn_refresh = tk.Label(top_frame, text=ICONS["RELOAD_ICON"], bg=BG_HEADER,
+                                   fg=FG_TEXT, font=(SYS_FONT, 14), padx=8, cursor="hand2")
         self.btn_refresh.pack(side=tk.LEFT, padx=2)
         self.btn_refresh.bind("<Button-1>", lambda e: self.refresh_data())
 
-        self.btn_settings = tk.Label(
-            top_frame,
-            text=ICONS["SETTINGS_ICON"],
-            bg=BG_HEADER,
-            fg=FG_TEXT,
-            font=(SYS_FONT, 14),
-            padx=8,
-            cursor="hand2",
-        )
+        self.btn_settings = tk.Label(top_frame, text=ICONS["SETTINGS_ICON"], bg=BG_HEADER,
+                                    fg=FG_TEXT, font=(SYS_FONT, 14), padx=8, cursor="hand2")
         self.btn_settings.pack(side=tk.LEFT, padx=2)
         self.btn_settings.bind("<Button-1>", lambda e: self.open_settings())
 
-        # Tree Table
+        # --- REPO TABLE WITH SCROLLBAR ---
         self.tree_frame = tk.Frame(root, bg=BG_MAIN)
         self.tree_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
-        self.tree = ttk.Treeview(
-            self.tree_frame, columns=("Name", "Last Commit"), show="headings"
-        )
-        self.tree.heading(
-            "Name", text=" NAME", command=lambda: self.sort_column("Name")
-        )
-        self.tree.heading(
-            "Last Commit",
-            text=" LAST COMMIT",
-            command=lambda: self.sort_column("Last Commit"),
-        )
+        
+        self.tree = ttk.Treeview(self.tree_frame, columns=("Name", "Last Commit"), show="headings")
+        # Add Scrollbar
+        repo_scroll = ttk.Scrollbar(self.tree_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=repo_scroll.set)
+        
+        self.tree.heading("Name", text=" NAME", command=lambda: self.sort_column("Name"))
+        self.tree.heading("Last Commit", text=" LAST COMMIT", command=lambda: self.sort_column("Last Commit"))
         self.tree.column("Name", width=300)
         self.tree.column("Last Commit", width=100, anchor="center")
+        
         self.tree.tag_configure("oddrow", background=BG_MAIN)
         self.tree.tag_configure("evenrow", background=BG_STRIPE)
+        
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        repo_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Selection Logic for Globe
-        self.globe_btn = tk.Label(
-            self.tree,
-            text=ICONS["GLOBE_ICON"],
-            bg=SELECTED,
-            fg="#888888",
-            font=(SYS_FONT, 12),
-            cursor="hand2",
-            padx=5,
-        )
+        # Globe button setup (remains the same)
+        self.globe_btn = tk.Label(self.tree, text=ICONS["GLOBE_ICON"], bg=SELECTED,
+                                 fg="#888888", font=(SYS_FONT, 12), cursor="hand2", padx=5)
         self.globe_btn.bind("<Button-1>", self.open_browser)
         self.globe_btn.bind("<Enter>", lambda e: self.globe_btn.configure(fg="white"))
         self.globe_btn.bind("<Leave>", lambda e: self.globe_btn.configure(fg="#888888"))
@@ -143,16 +93,6 @@ class DarkRepoLauncher:
         self.tree.bind("<<TreeviewSelect>>", self.handle_selection)
         self.tree.bind("<Double-1>", self.open_repo)
         self.tree.bind("<Return>", self.open_repo)
-
-        # Status & Open Button
-        self.status_var = tk.StringVar()
-        tk.Label(
-            root,
-            textvariable=self.status_var,
-            bg=BG_MAIN,
-            fg="#666666",
-            font=FONT_SMALL,
-        ).pack(anchor="w", padx=15)
 
         # self.btn_open = tk.Label(
         #     root,
@@ -300,7 +240,10 @@ class DarkRepoLauncher:
 
     def refresh_data(self):
         config.reload_config()
-        self.all_repos = get_git_repos(config.get_base_path())
+        self.all_repos = get_git_repos(
+            config.get_base_path(), 
+            max_depth=config.get_search_depth()
+        )
         col = "Last Commit" if self.sort_reverse["Last Commit"] else "Name"
         self.sort_column(col, toggle=False)
         # self.btn_open.config(text=f"OPEN IN {config.get_editor().upper()}")
