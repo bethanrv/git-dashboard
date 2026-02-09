@@ -55,4 +55,5 @@ Click the Settings (⚙) icon to configure:
 
 ## 📝 To-Do List:
 [ ] Test build on mac, windows
-[ ] loading animation
+[ ] loading animationfor requests
+[ ] Actions showing success on multiple checks including 1 failure
