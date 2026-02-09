@@ -80,28 +80,39 @@ class DarkRepoLauncher:
         self.tree_frame = tk.Frame(root, bg=BG_MAIN)
         self.tree_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
         
-        self.tree = ttk.Treeview(self.tree_frame, columns=("Name", "Last Commit"), show="headings")
-        # Add Scrollbar
-        repo_scroll = ttk.Scrollbar(self.tree_frame, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=repo_scroll.set)
+        # self.tree = ttk.Treeview(self.tree_frame, columns=("Name", "Link", "Last Commit",), show="headings")
         
-        self.tree.heading("Name", text=" NAME", command=lambda: self.sort_column("Name"))
-        self.tree.heading("Last Commit", text=" LAST COMMIT", command=lambda: self.sort_column("Last Commit"))
-        self.tree.column("Name", width=300)
-        self.tree.column("Last Commit", width=100, anchor="center")
+        # Add Scrollbar
+        # repo_scroll = ttk.Scrollbar(self.tree_frame, orient="vertical", command=self.tree.yview)
+        # self.tree.configure(yscrollcommand=repo_scroll.set)
+        
+        self.tree = ttk.Treeview(self.tree_frame, columns=("Name", "Link", "Last Commit"), show="headings")
+
+        self.tree.heading("Name", text=" NAME")
+        self.tree.heading("Link", text="") 
+        self.tree.heading("Last Commit", text=" LAST COMMIT")
+
+        self.tree.column("Name", width=300, anchor="w")
+        self.tree.column("Link", width=50, anchor="center") # Centering the icon
+        self.tree.column("Last Commit", width=100, anchor="e")
+
+        # Use ONLY the selection event for the icon toggle
+        self.tree.bind("<<TreeviewSelect>>", self.handle_selection)
+        # Use a separate click event ONLY for the browser opening
+        self.tree.bind("<Button-1>", self.handle_click)
         
         self.tree.tag_configure("oddrow", background=BG_MAIN)
         self.tree.tag_configure("evenrow", background=BG_STRIPE)
         
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        repo_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        # repo_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
         # Globe button setup (remains the same)
-        self.globe_btn = tk.Label(self.tree, text=ICONS["GLOBE_ICON"], bg=SELECTED,
-                                 fg="#888888", font=(SYS_FONT, 12), cursor="hand2", padx=5)
-        self.globe_btn.bind("<Button-1>", self.open_browser)
-        self.globe_btn.bind("<Enter>", lambda e: self.globe_btn.configure(fg="white"))
-        self.globe_btn.bind("<Leave>", lambda e: self.globe_btn.configure(fg="#888888"))
+        # self.globe_btn = tk.Label(self.tree, text=ICONS["GLOBE_ICON"], bg=SELECTED,
+        #                          fg="#888888", font=(SYS_FONT, 12), cursor="hand2", padx=5)
+        # self.globe_btn.bind("<Button-1>", self.open_browser)
+        # self.globe_btn.bind("<Enter>", lambda e: self.globe_btn.configure(fg="white"))
+        # self.globe_btn.bind("<Leave>", lambda e: self.globe_btn.configure(fg="#888888"))
 
         self.tree.bind("<<TreeviewSelect>>", self.handle_selection)
         self.tree.bind("<Double-1>", self.open_repo)
@@ -229,23 +240,38 @@ class DarkRepoLauncher:
         self.refresh_data()
 
     def handle_selection(self, event):
+        """Toggles the globe icon based on the current selection."""
+        # 1. Clear icons from all rows
+        for item in self.tree.get_children():
+            vals = list(self.tree.item(item, "values"))
+            if vals[1] != "": # Only update if not already empty to save performance
+                vals[1] = ""
+                self.tree.item(item, values=vals)
+
+        # 2. Add icon to the selected row
         selection = self.tree.selection()
-        if not selection:
-            self.globe_btn.place_forget()
-            return
+        if selection:
+            item_id = selection[0]
+            index = self.tree.index(item_id)
+            repo = self.filtered_repos[index]
+            
+            if repo.get("remote_url"):
+                vals = list(self.tree.item(item_id, "values"))
+                vals[1] = ICONS["GLOBE_ICON"]
+                self.tree.item(item_id, values=vals)
 
-        item_id = selection[0]
-        index = self.tree.index(item_id)
-        repo = self.filtered_repos[index]
-
-        if repo.get("remote_url"):
-            self.current_url = repo["remote_url"]
-            bbox = self.tree.bbox(item_id, "#1")
-            if bbox:
-                x, y, w, h = bbox
-                self.globe_btn.place(x=w - 35, y=y, height=h)
-        else:
-            self.globe_btn.place_forget()
+    def handle_click(self, event):
+        """Detects if the user clicked specifically on the globe icon."""
+        region = self.tree.identify_region(event.x, event.y)
+        if region == "cell":
+            column = self.tree.identify_column(event.x)
+            if column == "#2": # The Link column
+                item_id = self.tree.identify_row(event.y)
+                if item_id:
+                    index = self.tree.index(item_id)
+                    repo = self.filtered_repos[index]
+                    if repo.get("remote_url"):
+                        webbrowser.open(repo["remote_url"])
 
     def open_browser(self, event):
         if hasattr(self, "current_url"):
@@ -264,19 +290,20 @@ class DarkRepoLauncher:
         self.load_reviews()
 
     def update_list(self, *args):
-        self.globe_btn.place_forget()
         search_term = self.search_var.get().lower()
         for item in self.tree.get_children():
             self.tree.delete(item)
+        
         self.filtered_repos = []
         count = 0
         for repo in self.all_repos:
             if search_term in repo["name"].lower():
                 tag = "evenrow" if count % 2 == 0 else "oddrow"
+                
                 self.tree.insert(
                     "",
                     tk.END,
-                    values=(f"  {repo['name']}", repo["time_ago"]),
+                    values=(f"  {repo['name']}", "", repo["time_ago"]), # Empty middle col
                     tags=(tag,),
                 )
                 self.filtered_repos.append(repo)
