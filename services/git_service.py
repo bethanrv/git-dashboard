@@ -80,25 +80,73 @@ def fetch_open_prs():
     if not token:
         return []
     
-    # Search for PRs authored by the user that are open
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
+    # 1. Initial Search for your PRs
     query = "is:open is:pr author:@me"
-    url = f"https://api.github.com/search/issues?q={query}"
-    headers = {"Authorization": f"token {token}"}
+    search_url = f"https://api.github.com/search/issues?q={query}"
     
     try:
-        r = requests.get(url, headers=headers, timeout=5)
-        if r.status_code == 200:
-            items = r.json().get("items", [])
-            return [
-                {
-                    "repo": i["repository_url"].split("/")[-1],
-                    "title": i["title"],
-                    "status": "🟢",
-                    "url": i["html_url"]
-                } for i in items
-            ]
-    except:
-        pass
+        r = requests.get(search_url, headers=headers, timeout=5)
+        if r.status_code != 200:
+            return []
+            
+        items = r.json().get("items", [])
+        pr_list = []
+
+        for i in items:
+            # We need to extract 'owner/repo' and 'number' for deeper API calls
+            # Repo URL looks like: https://api.github.com/repos/owner/name
+            repo_full_name = "/".join(i["repository_url"].split("/")[-2:])
+            pr_number = i["number"]
+            
+            # --- Fetch Review Status ---
+            review_status = "Pending"
+            reviews_url = f"https://api.github.com/repos/{repo_full_name}/pulls/{pr_number}/reviews"
+            rev_r = requests.get(reviews_url, headers=headers, timeout=3)
+            if rev_r.status_code == 200:
+                revs = rev_r.json()
+                if any(rv["state"] == "APPROVED" for rv in revs):
+                    review_status = "Approved"
+                elif any(rv["state"] == "CHANGES_REQUESTED" for rv in revs):
+                    review_status = "Needs Work"
+
+            # --- Fetch Actions/CI Status ---
+            actions_status = "None"
+            pr_detail_url = f"https://api.github.com/repos/{repo_full_name}/pulls/{pr_number}"
+            pr_r = requests.get(pr_detail_url, headers=headers, timeout=3)
+            
+            if pr_r.status_code == 200:
+                head_sha = pr_r.json()["head"]["sha"]
+                status_url = f"https://api.github.com/repos/{repo_full_name}/commits/{head_sha}/status"
+                st_r = requests.get(status_url, headers=headers, timeout=3)
+                
+                if st_r.status_code == 200:
+                    data = st_r.json()
+                    state = data.get("state")
+                    total_count = data.get("total_count", 0)
+
+                    # Logic: If total_count is 0, there are no actions/checks
+                    if total_count == 0:
+                        actions_status = "NA"
+                    else:
+                        # Success, Failure, or Pending (actually running)
+                        actions_status = state.capitalize()
+
+            pr_list.append({
+                "repo": repo_full_name.split("/")[-1],
+                "title": i["title"],
+                "review_status": review_status,
+                "ci_status": actions_status,
+                "url": i["html_url"]
+            })
+            
+        return pr_list
+    except Exception as e:
+        print(f"Error fetching PR details: {e}")
     return []
 
 def fetch_review_requests():

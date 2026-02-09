@@ -132,26 +132,26 @@ class DarkRepoLauncher:
             bg=BG_MAIN, fg=ACCENT, font=FONT_BOLD, anchor="w"
         ).pack(fill=tk.X, pady=(0, 5))
 
-        # We'll use a smaller Treeview for PRs
+        # Revised columns: Repo, Title, Review Status, CI/Actions Status
         self.pr_tree = ttk.Treeview(
-            self.pr_frame, columns=("Repo", "Title", "Status"), 
-            show="headings", height=4 # Show 4 PRs before scrolling
+            self.pr_frame, columns=("Repo", "Title", "Review", "Actions"), 
+            show="headings", height=4 
         )
         self.pr_tree.heading("Repo", text=" REPO")
         self.pr_tree.heading("Title", text=" TITLE")
-        self.pr_tree.heading("Status", text=" STAT")
+        self.pr_tree.heading("Review", text=" REVIEW")
+        self.pr_tree.heading("Actions", text=" ACTIONS")
         
-        self.pr_tree.column("Repo", width=100, stretch=False)
-        self.pr_tree.column("Title", width=300, stretch=True)
-        self.pr_tree.column("Status", width=60, anchor="center", stretch=False)
+        self.pr_tree.column("Repo", width=90, stretch=False)
+        self.pr_tree.column("Title", width=250, stretch=True)
+        self.pr_tree.column("Review", width=100, anchor="center", stretch=False)
+        self.pr_tree.column("Actions", width=80, anchor="center", stretch=False)
         
         self.pr_tree.tag_configure("oddrow", background=BG_MAIN)
         self.pr_tree.tag_configure("evenrow", background=BG_STRIPE)
         self.pr_tree.pack(fill=tk.X)
 
-        # Bind click to open PR in browser
         self.pr_tree.bind("<Double-1>", self.open_selected_pr)
-
         # --- REVIEWS SECTION ---
         self.rev_frame = tk.Frame(root, bg=BG_MAIN)
         self.rev_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
@@ -346,22 +346,35 @@ class DarkRepoLauncher:
         self.update_auth_ui()
 
     def load_prs(self):
-        """Fetches and displays PRs from GitHub."""
-        # Clear existing
+        """Fetches and displays PRs with detailed Review and Actions status."""
         for item in self.pr_tree.get_children():
             self.pr_tree.delete(item)
             
         if not self.current_user:
             return
 
-        from services.git_service import fetch_open_prs # Ensure this exists in git_service
+        from services.git_service import fetch_open_prs 
         self.current_prs = fetch_open_prs()
         
         for i, pr in enumerate(self.current_prs):
             tag = "evenrow" if i % 2 == 0 else "oddrow"
+            
+            # Map statuses to icons/cleaner text if desired
+            review = pr.get("review_status", "Pending")
+            actions = pr.get("ci_status", "Running")
+            
+            # Optional: Visual shorthand
+            if actions == "success": actions = "✓"
+            if actions == "failure": actions = "✗"
+            
             self.pr_tree.insert(
                 "", tk.END, 
-                values=(pr["repo"], pr["title"], pr["status"]), 
+                values=(
+                    pr["repo"], 
+                    pr["title"], 
+                    review, 
+                    actions
+                ), 
                 tags=(tag,)
             )
 
